@@ -26,11 +26,8 @@ Created on Sat Sep 15 22:13:26 2018
 
 from pulp import *
 from datetime import *
-from dateutil import *
-import random
 import math
-import cPickle as pickle
-
+import pickle
 
 class Block(object):
     def __init__(self, name, start, duration, scores, rr, task):
@@ -198,7 +195,7 @@ class Schedule:
     
     
     def isDue(self, compl_task):
-        return not self.due_dates.has_key(compl_task) or not (self.due_dates[compl_task] is None)
+        return not self.due_dates.get(compl_task) or not (self.due_dates[compl_task] is None)
 
 
     def addCompletables(self, tasks):
@@ -279,14 +276,14 @@ class Schedule:
         return returnval
 
     def __assignDuesAux(self, compl_task, cache):
-        if not self.due_dates.has_key(compl_task):
+        if not self.due_dates.get(compl_task):
             return False
         num_days = (self.due_dates[compl_task] - self.start).days
         if num_days < compl_task.minDays():
             return False
 
         square_one_time = 0
-        if cache.has_key(compl_task):
+        if cache.get(compl_task):
             square_one_time = cache[compl_task]
         else:
             square_one_time = compl_task.getHoursFromSquareOne()
@@ -407,7 +404,7 @@ class Schedule:
 
         abval3 = [[LpVariable("abval3" + str(j) + str(s), 0, None, LpContinuous) for s in range(self.NUM_SCORES)] for j in range(self.budget_days)]
 
-        abval4 = [[LpVariable("abval4" + str(i) + str(w), 0, None, LpContinuous) for w in range(self.budget_days / 7)] for i in range(num_ongoings)]
+        abval4 = [[LpVariable("abval4" + str(i) + str(w), 0, None, LpContinuous) for w in range(int(self.budget_days / 7))] for i in range(num_ongoings)]
 
         # build objective
         line1 = LpAffineExpression([(a, self.UNSMOOTH_COST) for a in abval1])
@@ -418,7 +415,7 @@ class Schedule:
 
         line4 = lpSum([LpAffineExpression([(abval3[j][s], self.MISS_DAILY_SCORE_COSTS[s]) for s in range(self.NUM_SCORES)]) for j in range(self.budget_days)])
 
-        line5 = lpSum([LpAffineExpression([(abval4[i][w], miss_week_costs[i]) for w in range(self.budget_days/7)]) for i in range(num_ongoings)])
+        line5 = lpSum([LpAffineExpression([(abval4[i][w], miss_week_costs[i]) for w in range(int(self.budget_days/7))]) for i in range(num_ongoings)])
 
         objective = lpSum([line1,line2,line3,line4,line5])
 
@@ -486,7 +483,7 @@ class Schedule:
 
         #abval4 weekhours
         for i in range(num_ongoings):
-            for w in range(self.budget_days/7):
+            for w in range(int(self.budget_days/7)):
                 l1 = [(ong_decisions[i][7 * w + d], -ong_batches[i] * ong_wheth[i][7 * w + d]) for d in range(7)]
                 l1.append((abval4[i][w], -1))
                 pos = LpAffineExpression(l1)
@@ -505,7 +502,7 @@ class Schedule:
             problem += LpConstraint(e = exp, sense = LpConstraintLE, rhs = self.MAX_DAILY_HOURS)
 
     
-        problem.solve(COIN_CMD())
+        problem.solve()
         self.current_schedule = [[compl_decisions[i][j].value() * self.completables[i].batch_hours * compl_wheth[i][j] \
         for j in range(self.budget_days)] for i in range(num_completables)] + \
         [[ong_decisions[i][j].value() * self.ongoings[i].batch_hours * ong_wheth[i][j] \

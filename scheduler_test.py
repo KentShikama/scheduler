@@ -100,5 +100,5 @@ schedule.addOngoings(ongoings)
 schedule.makeSchedule()
 
 
-print schedule
-print LpStatus[schedule.makeSchedule().status]
+print(schedule)
+print(LpStatus[schedule.makeSchedule().status])
