@@ -27,6 +27,7 @@ from pulp import *
 from datetime import *
 import math
 import pickle
+import numpy as np
 
 from schedule_utility import hours_to_time_string, add_row_of_zeros_before_index, \
     delete_first_columns
@@ -242,7 +243,7 @@ class Schedule:
 
         # TODO make sure tasks from blocks are included in completables/ongoings
 
-    def isDue(self, compl_task):
+    def has_due_date(self, compl_task):
         return not self.due_dates.get(compl_task) or not (
             self.due_dates[compl_task] is None
         )
@@ -330,7 +331,7 @@ class Schedule:
         self.due_dates = dict([(c, c.due) for c in self.completables])
         returnval = True
         for c in self.completables:
-            if self.isDue(c):
+            if self.has_due_date(c):
                 if not self.__assignDuesAux(c, dict()):
                     returnval = False
 
@@ -358,24 +359,23 @@ class Schedule:
                 return False
         return True
 
-    def __makeWhether(self):
-        whether = [
-            [1 for j in range(self.budget_days)]
-            for i in range(len(self.completables) + len(self.ongoings))
-        ]
-        for i in range(len(self.completables)):
-            start_index = 0
-            for c in self.completables[i].prereqs:
-                if not self.isDue(c):
-                    start_index = self.budget_days
-                    break
-                else:
-                    start_index = max(
-                        start_index, self.dateToIndex(self.due_dates[c]) - 1
-                    )
-            for j in range(min(start_index, self.budget_days)):
-                whether[i][j] = 0
-        return whether
+    def __make_whether(self):
+        whether_dimension = (len(self.completables) + len(self.ongoings), self.budget_days)
+        whether = np.full(whether_dimension, True, dtype=bool)
+        for i, completable in enumerate(self.completables):
+            startable_index = self.__get_start_index(completable)
+            whether[i][:startable_index] = False
+        return whether.astype(int).tolist()
+
+    def __get_start_index(self, completable, start_index = 0):
+        for c in completable.prereqs:
+            if not self.has_due_date(c):
+                return self.budget_days
+            else:
+                start_index = max(
+                    start_index, self.dateToIndex(self.due_dates[c]) - 1
+                )
+        return start_index
 
     def __makePermTaskTime(self):
         num_tasks = len(self.completables) + len(self.ongoings)
@@ -404,11 +404,11 @@ class Schedule:
         self.__assignDues()
         dues = [0 for c in self.completables]
         for i in range(num_completables):
-            if self.isDue(self.completables[i]):
+            if self.has_due_date(self.completables[i]):
                 dues[i] = self.dateToIndex(self.due_dates[self.completables[i]])
 
         # make whether
-        whether = self.__makeWhether()
+        whether = self.__make_whether()
 
         total_hours = [c.total_hours for c in self.completables]
 
