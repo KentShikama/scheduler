@@ -28,6 +28,9 @@ from datetime import *
 import math
 import pickle
 
+from schedule_utility import hours_to_time_string, add_row_of_zeros_before_index, \
+    delete_first_columns
+
 
 class Block(object):
     def __init__(self, name, start, duration, scores, rr, task):
@@ -190,37 +193,6 @@ class Schedule:
     ]
     BIG_M = 99999999.9
 
-    @staticmethod
-    def hoursToTimeString(hours):
-        return (
-            str(int(hours))
-            + ":"
-            + str(int((hours - int(hours)) * 60) / 10)
-            + str(int((hours - int(hours)) * 60) % 10)
-        )
-
-    @staticmethod
-    def loadSchedule(filename):
-        with open(filename, "rb") as input:
-            return pickle.load(input)
-
-    # adds a row of zeros before index
-    @staticmethod
-    def addZerosRow(grid, index, num_zeros):
-        if len(grid) == 0:
-            grid.append([])
-        else:
-            grid.insert(index, [0.0 for h in range(num_zeros)])
-
-    # deletes first J columns of a grid.
-    # useful for removing past days from schedule
-    # column J not deleted
-    @staticmethod
-    def deleteCol0ToJ(grid, J):
-        for i in range(len(grid)):
-            for j in range(min(len(grid[i]), J)):
-                del (grid[i][0])
-
     def __init__(
         self,
         SHIFT_COST=0.0,
@@ -279,7 +251,7 @@ class Schedule:
         for task in tasks:
             if task not in self.completables:
                 for grid in self._grids:
-                    Schedule.addZerosRow(grid, len(self.completables), self.budget_days)
+                    add_row_of_zeros_before_index(grid, len(self.completables), self.budget_days)
                 self.completables.append(task)
                 self.due_dates[task] = task.due
         self.is_up_to_date = False
@@ -288,7 +260,7 @@ class Schedule:
         for task in tasks:
             if task not in self.ongoings:
                 for grid in self._grids:
-                    Schedule.addZerosRow(grid, len(grid), self.budget_days)
+                    add_row_of_zeros_before_index(grid, len(grid), self.budget_days)
                 self.ongoings.append(task)
         self.is_up_to_date = False
 
@@ -298,7 +270,7 @@ class Schedule:
         # delete past columns of grids, add up to budget_days
         today = date.today()
         for grid in self._grids:
-            Schedule.deleteCol0ToJ(grid, self.dateToIndex(today))
+            delete_first_columns(grid, self.dateToIndex(today))
             for i in grid:
                 i += [0.0 for j in range(self.dateToIndex(today))]
         if self.start < date.today():
@@ -321,12 +293,12 @@ class Schedule:
             for i in range(len(self.completables)):
                 if self.current_schedule[i][j] >= 1.0 / 60:
                     out += "\n" + self.completables[i].name + " "
-                    out += Schedule.hoursToTimeString(self.current_schedule[i][j])
+                    out += hours_to_time_string(self.current_schedule[i][j])
                     total_hours += self.current_schedule[i][j]
             for i in range(len(self.ongoings)):
                 if self.current_schedule[i + len(self.completables)][j] > 0:
                     out += "\n" + self.ongoings[i].name + " "
-                    out += Schedule.hoursToTimeString(
+                    out += hours_to_time_string(
                         self.current_schedule[i + len(self.completables)][j]
                     )
                     total_hours += self.current_schedule[i + len(self.completables)][j]
@@ -343,7 +315,7 @@ class Schedule:
                         * self.current_schedule[i + len(self.completables)][j]
                     )
                 out += str(int(total)) + " "
-            out += "\ntotal time: " + Schedule.hoursToTimeString(total_hours)
+            out += "\ntotal time: " + hours_to_time_string(total_hours)
             out += "\n\n"
         return out
 
