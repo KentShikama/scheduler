@@ -98,9 +98,9 @@ class Task(object):
         descr="",
         max_day_hours=24.0,
         max_block_length=24.0,
-        min_block_length=10.0/60,
+        min_block_length=10.0 / 60,
         is_batch=True,
-        batch_hours= 10.0 / 60,
+        batch_hours=10.0 / 60,
         scores=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
     ):
         self.name = name
@@ -125,7 +125,7 @@ class CompletableTask(Task):
         name="task",
         max_day_hours=24.0,
         max_block_length=24.0,
-        min_block_length=10.0/60,
+        min_block_length=10.0 / 60,
         is_batch=False,
         batch_hours=1.0,
         scores=(0, 0, 0, 0, 0, 0),
@@ -270,7 +270,9 @@ class Schedule:
             out, completables_hours = self.__append_completables_to_str(j, out)
             out, ongoings_hours = self.__append_ongoings_to_str(j, out)
             out = self.__append_score_totals_to_str(j, out)
-            out = self.__append_total_hours_to_str(completables_hours, ongoings_hours, out)
+            out = self.__append_total_hours_to_str(
+                completables_hours, ongoings_hours, out
+            )
             out += "\n\n"
         return out
 
@@ -309,9 +311,7 @@ class Schedule:
             out += str(int(total)) + " "
         return out
 
-    def __append_total_hours_to_str(self, completables_hours,
-                                    ongoings_hours,
-                                    out):
+    def __append_total_hours_to_str(self, completables_hours, ongoings_hours, out):
         out += "\n"
         total_hours = completables_hours + ongoings_hours
         out += "total time: " + hours_to_time_string(total_hours)
