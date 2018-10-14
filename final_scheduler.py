@@ -98,9 +98,9 @@ class Task(object):
         descr="",
         max_day_hours=24.0,
         max_block_length=24.0,
-        min_block_length=0.0,
+        min_block_length=10.0/60,
         is_batch=True,
-        batch_hours=1.0 / 6,
+        batch_hours= 10.0 / 60,
         scores=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
     ):
         self.name = name
@@ -123,9 +123,9 @@ class CompletableTask(Task):
     def __init__(
         self,
         name="task",
-        max_day_hours=24,
-        max_block_length=24,
-        min_block_length=0,
+        max_day_hours=24.0,
+        max_block_length=24.0,
+        min_block_length=10.0/60,
         is_batch=False,
         batch_hours=1.0,
         scores=(0, 0, 0, 0, 0, 0),
@@ -270,16 +270,14 @@ class Schedule:
             out, completables_hours = self.__append_completables_to_str(j, out)
             out, ongoings_hours = self.__append_ongoings_to_str(j, out)
             out = self.__append_score_totals_to_str(j, out)
-            total_hours = completables_hours + ongoings_hours
-            out += "\n"
-            out += "total time: " + hours_to_time_string(total_hours)
+            out = self.__append_total_hours_to_str(completables_hours, ongoings_hours, out)
             out += "\n\n"
         return out
 
     def __append_completables_to_str(self, j, out):
         hours = 0
         for i, completable in enumerate(self.completables):
-            if self.current_schedule[i][j] >= 1.0 / 60:
+            if self.current_schedule[i][j] >= completable.min_block_length:
                 out += "\n"
                 out += completable.name + " (completable) "
                 out += hours_to_time_string(self.current_schedule[i][j])
@@ -290,7 +288,7 @@ class Schedule:
         hours = 0
         for i, ongoing in enumerate(self.ongoings):
             offset_i = i + len(self.completables)
-            if self.current_schedule[offset_i][j] > 0:
+            if self.current_schedule[offset_i][j] > ongoing.min_block_length:
                 out += "\n"
                 out += ongoing.name + " (ongoing) "
                 out += hours_to_time_string(self.current_schedule[offset_i][j])
@@ -309,6 +307,14 @@ class Schedule:
                     * self.current_schedule[i + len(self.completables)][j]
                 )
             out += str(int(total)) + " "
+        return out
+
+    def __append_total_hours_to_str(self, completables_hours,
+                                    ongoings_hours,
+                                    out):
+        out += "\n"
+        total_hours = completables_hours + ongoings_hours
+        out += "total time: " + hours_to_time_string(total_hours)
         return out
 
     def save(self, filename):

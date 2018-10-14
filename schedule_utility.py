@@ -29,6 +29,7 @@ class ScheduleConstants:
         daily_score_targets=(700, 200, 50, 200, 200, 2400),
         miss_daily_score_costs=(1000, 200, 300, 200, 200, 50),
         max_daily_hours=24.0,
+        min_task_length = 1.0 / 60
     ):
         self.shift_cost = shift_cost
         self.time_cost = time_cost
@@ -37,6 +38,7 @@ class ScheduleConstants:
         self.daily_score_targets = daily_score_targets
         self.miss_daily_score_costs = miss_daily_score_costs
         self.max_daily_hours = max_daily_hours
+        self.min_task_length = min_task_length
 
 
 def hours_to_time_string(hours):
