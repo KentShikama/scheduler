@@ -268,33 +268,46 @@ class Schedule:
                 WEEKDAYS[self.indexToDate(j).weekday()] + " " + str(self.indexToDate(j))
             )
             total_hours = 0
-            for i in range(len(self.completables)):
-                if self.current_schedule[i][j] >= 1.0 / 60:
-                    out += "\n" + self.completables[i].name + " "
-                    out += hours_to_time_string(self.current_schedule[i][j])
-                    total_hours += self.current_schedule[i][j]
-            for i in range(len(self.ongoings)):
-                if self.current_schedule[i + len(self.completables)][j] > 0:
-                    out += "\n" + self.ongoings[i].name + " "
-                    out += hours_to_time_string(
-                        self.current_schedule[i + len(self.completables)][j]
-                    )
-                    total_hours += self.current_schedule[i + len(self.completables)][j]
-            out += "\nscore totals: "
-            for s in range(self.NUM_SCORES):
-                total = 0
-                for i in range(len(self.completables)):
-                    total += (
-                        self.completables[i].scores[s] * self.current_schedule[i][j]
-                    )
-                for i in range(len(self.ongoings)):
-                    total += (
-                        self.ongoings[i].scores[s]
-                        * self.current_schedule[i + len(self.completables)][j]
-                    )
-                out += str(int(total)) + " "
-            out += "\ntotal time: " + hours_to_time_string(total_hours)
+            out, total_hours = self.__append_completable_to_str(j, out, total_hours)
+            out, total_hours = self.__append_ongoings_to_str(j, out, total_hours)
+            out = self.__append_score_totals_to_str(j, out)
+            out += "\n"
+            out += "total time: " + hours_to_time_string(total_hours)
             out += "\n\n"
+        return out
+
+    def __append_completable_to_str(self, j, out, total_hours):
+        for i in range(len(self.completables)):
+            if self.current_schedule[i][j] >= 1.0 / 60:
+                out += "\n"
+                out += self.completables[i].name + " (completable) "
+                out += hours_to_time_string(self.current_schedule[i][j])
+                total_hours += self.current_schedule[i][j]
+        return out, total_hours
+
+    def __append_ongoings_to_str(self, j, out, total_hours):
+        for i in range(len(self.ongoings)):
+            if self.current_schedule[i + len(self.completables)][j] > 0:
+                out += "\n"
+                out += self.ongoings[i].name + " (ongoing) "
+                out += hours_to_time_string(
+                    self.current_schedule[i + len(self.completables)][j]
+                )
+                total_hours += self.current_schedule[i + len(self.completables)][j]
+        return out, total_hours
+
+    def __append_score_totals_to_str(self, j, out):
+        out += "\nscore totals: "
+        for s in range(self.NUM_SCORES):
+            total = 0
+            for i, completable in enumerate(self.completables):
+                total += completable.scores[s] * self.current_schedule[i][j]
+            for i, ongoing in enumerate(self.ongoings):
+                total += (
+                    ongoing.scores[s]
+                    * self.current_schedule[i + len(self.completables)][j]
+                )
+            out += str(int(total)) + " "
         return out
 
     def save(self, filename):
