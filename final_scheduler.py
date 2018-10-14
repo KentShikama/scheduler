@@ -29,8 +29,13 @@ import math
 import pickle
 import numpy as np
 
-from schedule_utility import hours_to_time_string, add_row_of_zeros_before_index, \
-    delete_first_columns
+from schedule_utility import (
+    hours_to_time_string,
+    add_row_of_zeros_before_index,
+    delete_first_columns,
+    WEEKDAYS,
+    ScheduleConstants,
+)
 
 
 class Block(object):
@@ -183,33 +188,9 @@ class OngoingTask(Task):
 
 
 class Schedule:
-    WEEKDAYS = [
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday",
-    ]
-    BIG_M = 99999999.9
-
     def __init__(
         self,
-        SHIFT_COST=0.0,
-        TIME_COST=10000.0,
-        UNSMOOTH_COST=100.0,
-        SCORE_LABELS=(
-            "Productive",
-            "Intellectual",
-            "Exercise",
-            "Outdoors",
-            "Social",
-            "Fun",
-        ),
-        DAILY_SCORE_TARGETS=(700, 200, 50, 200, 200, 2400),
-        MISS_DAILY_SCORE_COSTS=(1000, 200, 300, 200, 200, 50),
-        MAX_DAILY_HOURS=24.0,
+        schedule_constants=ScheduleConstants(),
         start=date.today(),
         budget_days=7,
         current_schedule=[],
@@ -219,14 +200,10 @@ class Schedule:
         flex_blocks=[],
         perm_blocks=[],
     ):
-        self.SHIFT_COST = SHIFT_COST
-        self.TIME_COST = TIME_COST
-        self.UNSMOOTH_COST = UNSMOOTH_COST
-        self.SCORE_LABELS = SCORE_LABELS
-        self.DAILY_SCORE_TARGETS = DAILY_SCORE_TARGETS
-        self.MISS_DAILY_SCORE_COSTS = MISS_DAILY_SCORE_COSTS
-        self.NUM_SCORES = len(MISS_DAILY_SCORE_COSTS)
-        self.MAX_DAILY_HOURS = MAX_DAILY_HOURS
+        self.schedule_constants = schedule_constants
+        self.NUM_SCORES = len(
+            schedule_constants.miss_daily_score_costs
+        )  # TODO: Refactor
         self.start = start
         self.budget_days = budget_days
         self.current_schedule = current_schedule
@@ -252,7 +229,9 @@ class Schedule:
         for task in tasks:
             if task not in self.completables:
                 for grid in self._grids:
-                    add_row_of_zeros_before_index(grid, len(self.completables), self.budget_days)
+                    add_row_of_zeros_before_index(
+                        grid, len(self.completables), self.budget_days
+                    )
                 self.completables.append(task)
                 self.due_dates[task] = task.due
         self.is_up_to_date = False
@@ -286,9 +265,7 @@ class Schedule:
         out = ""
         for j in range(self.budget_days):
             out += (
-                Schedule.WEEKDAYS[self.indexToDate(j).weekday()]
-                + " "
-                + str(self.indexToDate(j))
+                WEEKDAYS[self.indexToDate(j).weekday()] + " " + str(self.indexToDate(j))
             )
             total_hours = 0
             for i in range(len(self.completables)):
@@ -360,21 +337,22 @@ class Schedule:
         return True
 
     def __make_whether(self):
-        whether_dimension = (len(self.completables) + len(self.ongoings), self.budget_days)
+        whether_dimension = (
+            len(self.completables) + len(self.ongoings),
+            self.budget_days,
+        )
         whether = np.full(whether_dimension, True, dtype=bool)
         for i, completable in enumerate(self.completables):
             startable_index = self.__get_start_index(completable)
             whether[i][:startable_index] = False
         return whether.astype(int).tolist()
 
-    def __get_start_index(self, completable, start_index = 0):
+    def __get_start_index(self, completable, start_index=0):
         for c in completable.prereqs:
             if not self.has_due_date(c):
                 return self.budget_days
             else:
-                start_index = max(
-                    start_index, self.dateToIndex(self.due_dates[c]) - 1
-                )
+                start_index = max(start_index, self.dateToIndex(self.due_dates[c]) - 1)
         return start_index
 
     def __makePermTaskTime(self):
@@ -523,13 +501,20 @@ class Schedule:
         ]
 
         # build objective
-        line1 = LpAffineExpression([(a, self.UNSMOOTH_COST) for a in abval1])
+        line1 = LpAffineExpression(
+            [(a, self.schedule_constants.unsmooth_cost) for a in abval1]
+        )
 
         line2 = lpSum(
             [
                 LpAffineExpression(
                     [
-                        (x[i][j], self.TIME_COST * batches[i] * whether[i][j])
+                        (
+                            x[i][j],
+                            self.schedule_constants.time_cost
+                            * batches[i]
+                            * whether[i][j],
+                        )
                         for j in range(self.budget_days)
                     ]
                 )
@@ -540,7 +525,10 @@ class Schedule:
         line3 = lpSum(
             [
                 LpAffineExpression(
-                    [(abval2[i][j], self.SHIFT_COST) for j in range(self.budget_days)]
+                    [
+                        (abval2[i][j], self.schedule_constants.shift_cost)
+                        for j in range(self.budget_days)
+                    ]
                 )
                 for i in range(num_tasks)
             ]
@@ -550,7 +538,10 @@ class Schedule:
             [
                 LpAffineExpression(
                     [
-                        (abval3[j][s], self.MISS_DAILY_SCORE_COSTS[s])
+                        (
+                            abval3[j][s],
+                            self.schedule_constants.miss_daily_score_costs[s],
+                        )
                         for s in range(self.NUM_SCORES)
                     ]
                 )
@@ -668,10 +659,14 @@ class Schedule:
                 neg = LpAffineExpression(l2)
 
                 problem += LpConstraint(
-                    e=pos, sense=LpConstraintLE, rhs=self.DAILY_SCORE_TARGETS[s]
+                    e=pos,
+                    sense=LpConstraintLE,
+                    rhs=self.schedule_constants.daily_score_targets[s],
                 )
                 problem += LpConstraint(
-                    e=neg, sense=LpConstraintLE, rhs=-self.DAILY_SCORE_TARGETS[s]
+                    e=neg,
+                    sense=LpConstraintLE,
+                    rhs=-self.schedule_constants.daily_score_targets[s],
                 )
         # end abval3
 
@@ -708,7 +703,7 @@ class Schedule:
                 [(x[i][j], whether[i][j] * batches[i]) for i in range(num_tasks)]
             )
             problem += LpConstraint(
-                e=exp, sense=LpConstraintLE, rhs=self.MAX_DAILY_HOURS
+                e=exp, sense=LpConstraintLE, rhs=self.schedule_constants.max_daily_hours
             )
 
         problem.solve()

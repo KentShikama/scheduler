@@ -5,14 +5,18 @@ completables = []
 ongoings = []
 
 
+schedule_constants = ScheduleConstants(
+    shift_cost=0.0,
+    time_cost=15000.0,
+    unsmooth_cost=100.0,
+    score_labels=("Productive", "Mental", "Exercise", "Outdoors", "Social", "Fun"),
+    daily_score_targets=(700, 200, 50, 200, 200, 2400),
+    miss_daily_score_costs=(1000, 200, 300, 200, 200, 50),
+    max_daily_hours=14.0,
+)
+
 schedule = Schedule(
-    SHIFT_COST=0.0,
-    TIME_COST=15000.0,
-    UNSMOOTH_COST=100.0,
-    SCORE_LABELS=("Productive", "Mental", "Exercise", "Outdoors", "Social", "Fun"),
-    DAILY_SCORE_TARGETS=(700, 200, 50, 200, 200, 2400),
-    MISS_DAILY_SCORE_COSTS=(1000, 200, 300, 200, 200, 50),
-    MAX_DAILY_HOURS=14.0,
+    schedule_constants=schedule_constants,
     start=date.today(),
     budget_days=7,
     current_schedule=[],
