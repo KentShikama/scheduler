@@ -267,25 +267,27 @@ class Schedule:
             out += (
                 WEEKDAYS[self.indexToDate(j).weekday()] + " " + str(self.indexToDate(j))
             )
-            total_hours = 0
-            out, total_hours = self.__append_completable_to_str(j, out, total_hours)
-            out, total_hours = self.__append_ongoings_to_str(j, out, total_hours)
+            out, completable_hours = self.__append_completable_to_str(j, out)
+            out, ongoing_hours = self.__append_ongoings_to_str(j, out)
             out = self.__append_score_totals_to_str(j, out)
+            total_hours = completable_hours + ongoing_hours
             out += "\n"
             out += "total time: " + hours_to_time_string(total_hours)
             out += "\n\n"
         return out
 
-    def __append_completable_to_str(self, j, out, total_hours):
+    def __append_completable_to_str(self, j, out):
+        hours = 0
         for i in range(len(self.completables)):
             if self.current_schedule[i][j] >= 1.0 / 60:
                 out += "\n"
                 out += self.completables[i].name + " (completable) "
                 out += hours_to_time_string(self.current_schedule[i][j])
-                total_hours += self.current_schedule[i][j]
-        return out, total_hours
+                hours += self.current_schedule[i][j]
+        return out, hours
 
-    def __append_ongoings_to_str(self, j, out, total_hours):
+    def __append_ongoings_to_str(self, j, out):
+        hours = 0
         for i in range(len(self.ongoings)):
             if self.current_schedule[i + len(self.completables)][j] > 0:
                 out += "\n"
@@ -293,8 +295,8 @@ class Schedule:
                 out += hours_to_time_string(
                     self.current_schedule[i + len(self.completables)][j]
                 )
-                total_hours += self.current_schedule[i + len(self.completables)][j]
-        return out, total_hours
+                hours += self.current_schedule[i + len(self.completables)][j]
+        return out, hours
 
     def __append_score_totals_to_str(self, j, out):
         out += "\nscore totals: "
