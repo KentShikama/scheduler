@@ -277,7 +277,7 @@ class Schedule:
     def __append_completables_to_str(self, j, out):
         hours = 0
         for i, completable in enumerate(self.completables):
-            if self.current_schedule[i][j] >= completable.min_block_length:
+            if self.current_schedule[i][j] > completable.min_block_length:
                 out += "\n"
                 out += completable.name + " (completable) "
                 out += hours_to_time_string(self.current_schedule[i][j])
