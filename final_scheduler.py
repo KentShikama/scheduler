@@ -267,35 +267,34 @@ class Schedule:
             out += (
                 WEEKDAYS[self.indexToDate(j).weekday()] + " " + str(self.indexToDate(j))
             )
-            out, completable_hours = self.__append_completable_to_str(j, out)
-            out, ongoing_hours = self.__append_ongoings_to_str(j, out)
+            out, completables_hours = self.__append_completables_to_str(j, out)
+            out, ongoings_hours = self.__append_ongoings_to_str(j, out)
             out = self.__append_score_totals_to_str(j, out)
-            total_hours = completable_hours + ongoing_hours
+            total_hours = completables_hours + ongoings_hours
             out += "\n"
             out += "total time: " + hours_to_time_string(total_hours)
             out += "\n\n"
         return out
 
-    def __append_completable_to_str(self, j, out):
+    def __append_completables_to_str(self, j, out):
         hours = 0
-        for i in range(len(self.completables)):
+        for i, completable in enumerate(self.completables):
             if self.current_schedule[i][j] >= 1.0 / 60:
                 out += "\n"
-                out += self.completables[i].name + " (completable) "
+                out += completable.name + " (completable) "
                 out += hours_to_time_string(self.current_schedule[i][j])
                 hours += self.current_schedule[i][j]
         return out, hours
 
     def __append_ongoings_to_str(self, j, out):
         hours = 0
-        for i in range(len(self.ongoings)):
-            if self.current_schedule[i + len(self.completables)][j] > 0:
+        for i, ongoing in enumerate(self.ongoings):
+            offset_i = i + len(self.completables)
+            if self.current_schedule[offset_i][j] > 0:
                 out += "\n"
-                out += self.ongoings[i].name + " (ongoing) "
-                out += hours_to_time_string(
-                    self.current_schedule[i + len(self.completables)][j]
-                )
-                hours += self.current_schedule[i + len(self.completables)][j]
+                out += ongoing.name + " (ongoing) "
+                out += hours_to_time_string(self.current_schedule[offset_i][j])
+                hours += self.current_schedule[offset_i][j]
         return out, hours
 
     def __append_score_totals_to_str(self, j, out):
